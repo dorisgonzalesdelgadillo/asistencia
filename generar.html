@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Generar QR - Alumno</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Generar QR del alumno</h1>
+
+    <form id="formAlumno" class="form">
+      <label>Nombre</label>
+      <input id="nombre" placeholder="Ej: Juan" required />
+
+      <label>Apellidos</label>
+      <input id="apellidos" placeholder="Ej: Pérez García" required />
+
+      <label>DNI</label>
+      <input id="dni" placeholder="Ej: 12345678" required />
+
+      <button type="submit">Generar QR</button>
+    </form>
+
+    <section id="resultado" class="resultado" style="display:none;">
+      <h2>QR generado</h2>
+      <img id="qrImg" alt="QR alumno" />
+      <div class="buttons">
+        <button id="descargarPNG">Descargar PNG</button>
+        <button id="descargarPDF">Descargar PDF</button>
+      </div>
+      <p class="nota">Puedes compartir el PNG por WhatsApp, imprimirlo o guardarlo.</p>
+    </section>
+
+    <p><a href="index.html">← Volver</a></p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="app.js"></script>
+
+  <script>
+    (function(){
+      const form = document.getElementById('formAlumno');
+      const resultado = document.getElementById('resultado');
+      const qrImg = document.getElementById('qrImg');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nombre = document.getElementById('nombre').value.trim();
+        const apellidos = document.getElementById('apellidos').value.trim();
+        const dni = document.getElementById('dni').value.trim();
+
+        if (!nombre || !apellidos || !dni) {
+          alert('Completa todos los campos');
+          return;
+        }
+
+        const payload = { dni, nombre, apellidos };
+        const dataUrl = await window.__generateQRCode(JSON.stringify(payload));
+        qrImg.src = dataUrl;
+        resultado.style.display = 'block';
+
+        document.getElementById('descargarPNG').onclick = () => {
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `${dni}_${nombre}_${apellidos}_QR.png`;
+          a.click();
+        };
+
+        document.getElementById('descargarPDF').onclick = () => {
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF();
+          pdf.setFontSize(12);
+          pdf.text(`Alumno: ${nombre} ${apellidos}`, 10, 10);
+          pdf.text(`DNI: ${dni}`, 10, 18);
+          pdf.addImage(dataUrl, 'PNG', 15, 30, 70, 70);
+          pdf.save(`${dni}_${nombre}_${apellidos}_QR.pdf`);
+        };
+      });
+    })();
+  </script>
+</body>
+</html>
