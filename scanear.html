@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Escanear QR - Registrar asistencia</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Escanear QR - Registrar asistencia</h1>
+
+    <div id="reader"></div>
+    <div id="status" class="status">Esperando escaneo...</div>
+
+    <p><a href="index.html">← Volver</a></p>
+  </main>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="app.js"></script>
+
+  <script>
+    (function () {
+      const statusEl = document.getElementById('status');
+
+      // Pon tu URL publicada de Apps Script aquí
+      const SHEET_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbzTRAPBi5BEXsvj5tQBYfA4h5GiKS7ai8zh124p4_WEFRl7FNxNvMmn6AQ_BkWMkkcJ0w/exec";
+
+      async function enviarARegistro(rowObj) {
+        statusEl.textContent = 'Enviando registro...';
+        await fetch(SHEET_ENDPOINT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(rowObj)
+        });
+        statusEl.textContent = `✔ Registrado: ${rowObj.dni} - ${rowObj.nombre} ${rowObj.apellidos}`;
+      }
+
+      const html5QrCode = new Html5Qrcode("reader");
+
+      function onScanSuccess(decodedText) {
+        if (!window.__evitarDobleScan(decodedText, statusEl)) return;
+
+        try {
+          const payload = JSON.parse(decodedText);
+          if (!payload.dni || !payload.nombre || !payload.apellidos) {
+            statusEl.textContent = "QR inválido: faltan datos.";
+            return;
+          }
+
+          const now = new Date();
+          const row = {
+            dni: payload.dni,
+            nombre: payload.nombre,
+            apellidos: payload.apellidos,
+            fecha: now.toLocaleDateString("es-PE"),
+            hora: now.toLocaleTimeString("es-PE")
+          };
+
+          statusEl.textContent = `Alumno detectado: ${row.dni} - ${row.nombre}. Registrando...`;
+
+          html5QrCode.pause(true);
+          enviarARegistro(row).then(() => {
+            setTimeout(() => {
+              statusEl.textContent = "Esperando escaneo...";
+              html5QrCode.resume();
+            }, 1500);
+          });
+
+        } catch {
+          statusEl.textContent = "QR inválido: no es JSON válido.";
+        }
+      }
+
+      function onScanFailure(error) { /* ignorar */ }
+
+      Html5Qrcode.getCameras().then(cameras => {
+        if (cameras.length > 0) {
+          html5QrCode.start(cameras[0].id, { fps: 10, qrbox: 260 }, onScanSuccess, onScanFailure);
+        } else {
+          statusEl.textContent = "No se encontró ninguna cámara.";
+        }
+      }).catch(err => {
+        statusEl.textContent = "Error al activar cámara: " + err;
+      });
+    })();
+  </script>
+</body>
+</html>
